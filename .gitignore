@@ -1,0 +1,8 @@
+# No VSCode, crie um novo arquivo chamado .gitignore
+venv/
+credentials.json
+__pycache__/
+.env
+*.pyc
+secrets.toml
+*secrets.toml
