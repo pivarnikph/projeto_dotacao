@@ -9,8 +9,6 @@ print(st.secrets)
 if "gcp_service_account" not in st.secrets:
     print("Erro: chave 'gcp_service_account' não encontrada no secrets.toml")
 
-
-# Configuração do locale para formato brasileiro
 try:
     locale.setlocale(locale.LC_ALL, 'pt_BR.UTF-8')
 except:
@@ -23,12 +21,21 @@ class DotacaoApp:
         self.load_data()
     
     def configure_page(self):
-        # Configuração básica da página
         st.set_page_config(page_title="Disponibilização de Dotação", layout="centered")
         
-        # Estilização da interface
         st.markdown("""
             <style>
+            /* Background color for the entire page */
+            .stApp {
+                background-color: #004f4b;
+            }
+            
+            /* Header styling */
+            .header-image {
+                width: 100%;
+                margin-bottom: 2rem;
+            }
+            
             .stTextInput > div > div > input {
                 background-color: white;
                 color: black;
@@ -66,7 +73,6 @@ class DotacaoApp:
 
     def setup_google_sheets(self):
         try:
-            # Carregar credenciais do arquivo secrets.toml
             credentials_info = st.secrets["gcp_service_account"]
             credentials = service_account.Credentials.from_service_account_info(
                 credentials_info,
@@ -74,9 +80,8 @@ class DotacaoApp:
                         'https://www.googleapis.com/auth/drive']
             )
 
-            # Conectar ao Google Sheets
             self.gc = gspread.authorize(credentials)
-            self.SHEET_ID = "1sBKOPTYYbG1q7Ivqz8IildycV-Fen0PSF1mfgIDse_U"  # Substitua pelo ID da sua planilha
+            self.SHEET_ID = "1sBKOPTYYbG1q7Ivqz8IildycV-Fen0PSF1mfgIDse_U"
             
             try:
                 spreadsheet = self.gc.open_by_key(self.SHEET_ID)
@@ -93,7 +98,6 @@ class DotacaoApp:
 
     def load_data(self):
         try:
-            # Carregar dados do Excel
             self.df = pd.read_excel('DOTACOES.xlsx')
             self.orgaos = sorted(self.df['ÓRGÃO'].unique())
         except Exception as e:
@@ -121,16 +125,19 @@ class DotacaoApp:
             raise Exception(f"Erro ao salvar na planilha: {str(e)}")
 
     def run(self):
+        # Adicionar a imagem do header
+        st.markdown("""
+            <img src="https://i.ibb.co/d7pmTKS/Alimentos-E-Bebidas-Email-Header.jpg" class="header-image">
+        """, unsafe_allow_html=True)
+        
         st.title("Disponibilização de Dotação")
 
-        # Seleção do Órgão
         selected_orgao = st.selectbox(
             "Selecione o Órgão",
             options=[''] + self.orgaos
         )
 
         if selected_orgao:
-            # Filtrar dotações pelo órgão selecionado
             dotacoes = sorted(self.df[self.df['ÓRGÃO'] == selected_orgao]['DOTAÇÃO'].unique())
             
             selected_dotacao = st.selectbox(
@@ -139,7 +146,6 @@ class DotacaoApp:
             )
 
             if selected_dotacao:
-                # Filtrar sequenciais
                 sequenciais = sorted(
                     self.df[
                         (self.df['ÓRGÃO'] == selected_orgao) & 
@@ -152,14 +158,12 @@ class DotacaoApp:
                     options=sequenciais
                 )
 
-                # Campo de valor
                 st.markdown("### Insira abaixo o valor disponibilizado")
                 valor = st.text_input(
                     "Digite o valor (R$)",
                     help="Digite o valor em reais (ex: 1.000,00)"
                 )
 
-                # Campo de data
                 st.markdown("### Data da Disponibilização")
                 data = st.date_input(
                     "Data",
@@ -168,7 +172,6 @@ class DotacaoApp:
                     label_visibility="collapsed"
                 )
 
-                # Botão de envio
                 if st.button("ENVIAR PARA SMO"):
                     if valor:
                         try:
