@@ -1,6 +1,3 @@
-pip install --upgrade google-auth google-auth-httplib2 google-api-python-client
-
-
 import streamlit as st
 from datetime import datetime
 import pandas as pd
