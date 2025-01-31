@@ -19,6 +19,13 @@ class DotacaoApp:
         self.configure_page()
         self.setup_google_sheets()
         self.load_data()
+        # Inicializa as variáveis de sessão se não existirem
+        if 'login_ok' not in st.session_state:
+            st.session_state.login_ok = False
+        if 'usuario_nome' not in st.session_state:
+            st.session_state.usuario_nome = ""
+        if 'unidade_orcamentaria' not in st.session_state:
+            st.session_state.unidade_orcamentaria = ""
     
     def configure_page(self):
         st.set_page_config(page_title="Disponibilização de Dotação", layout="centered")
@@ -86,10 +93,15 @@ class DotacaoApp:
             try:
                 spreadsheet = self.gc.open_by_key(self.SHEET_ID)
                 self.worksheet = spreadsheet.worksheet('Registros')
+                # Verifica se a coluna Usuario_Nome existe, se não, adiciona
+                headers = self.worksheet.row_values(1)
+                if 'Usuario_Nome' not in headers:
+                    self.worksheet.add_cols(1)
+                    self.worksheet.update_cell(1, len(headers) + 1, 'Usuario_Nome')
             except gspread.WorksheetNotFound:
                 spreadsheet = self.gc.open_by_key(self.SHEET_ID)
                 self.worksheet = spreadsheet.add_worksheet('Registros', 1000, 20)
-                headers = ['Data', 'Órgão', 'Dotação', 'Sequencial', 'Valor']
+                headers = ['Data', 'Órgão', 'Dotação', 'Sequencial', 'Valor', 'Usuario_Nome']
                 self.worksheet.append_row(headers)
         
         except Exception as e:
@@ -117,12 +129,37 @@ class DotacaoApp:
                 data['Órgão'],
                 data['Dotação'],
                 str(data['Sequencial']),
-                data['Valor']
+                data['Valor'],
+                data['Usuario_Nome']
             ]
             self.worksheet.append_row(row)
             return True
         except Exception as e:
             raise Exception(f"Erro ao salvar na planilha: {str(e)}")
+
+    def show_login(self):
+        st.title("Login")
+        
+        # Campo para nome do servidor
+        nome_servidor = st.text_input("Nome do Servidor", value=st.session_state.usuario_nome)
+        
+        # Dropdown para Unidade Orçamentária (usando os órgãos já carregados)
+        unidade_orc = st.selectbox(
+            "Unidade Orçamentária",
+            options=[''] + self.orgaos,
+            index=0 if not st.session_state.unidade_orcamentaria else 
+                  self.orgaos.index(st.session_state.unidade_orcamentaria) + 1
+        )
+        
+        # Botão de login
+        if st.button("Entrar"):
+            if nome_servidor and unidade_orc:
+                st.session_state.login_ok = True
+                st.session_state.usuario_nome = nome_servidor
+                st.session_state.unidade_orcamentaria = unidade_orc
+                st.rerun()  # Substituído experimental_rerun() por rerun()
+            else:
+                st.error("Por favor, preencha todos os campos!")
 
     def run(self):
         # Adicionar a imagem do header
@@ -130,7 +167,21 @@ class DotacaoApp:
             <img src="https://i.ibb.co/d7pmTKS/Alimentos-E-Bebidas-Email-Header.jpg" class="header-image">
         """, unsafe_allow_html=True)
         
+        # Verifica se o usuário já fez login
+        if not st.session_state.login_ok:
+            self.show_login()
+            return
+
         st.title("Disponibilização de Dotação")
+        
+        # Mostra informações do usuário logado
+        st.sidebar.markdown(f"**Usuário:** {st.session_state.usuario_nome}")
+        st.sidebar.markdown(f"**Unidade:** {st.session_state.unidade_orcamentaria}")
+        if st.sidebar.button("Sair"):
+            st.session_state.login_ok = False
+            st.session_state.usuario_nome = ""
+            st.session_state.unidade_orcamentaria = ""
+            st.rerun()  # Substituído experimental_rerun() por rerun()
 
         selected_orgao = st.selectbox(
             "Selecione o Órgão",
@@ -181,7 +232,8 @@ class DotacaoApp:
                                 'Órgão': selected_orgao,
                                 'Dotação': selected_dotacao,
                                 'Sequencial': selected_sequencial,
-                                'Valor': self.format_currency(valor_float)
+                                'Valor': self.format_currency(valor_float),
+                                'Usuario_Nome': st.session_state.usuario_nome
                             }
                             
                             if self.save_to_sheets(registro):
